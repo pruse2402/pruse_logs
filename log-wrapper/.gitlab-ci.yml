@@ -1,0 +1,135 @@
+image: golang:1.10
+stages:
+  - test
+  - lint
+  - build
+  - deploy-staging
+  - deploy-prod
+  - deploy-prod-new
+
+before_script:
+  - go get github.com/tools/godep
+  - go get golang.org/x/tools/cmd/goimports
+  - mkdir -p /go/src/pruse_logs/log-wrapper
+  - cp -r $CI_PROJECT_DIR /go/src/lynk/
+  - cd /go/src/pruse_logs/log-wrapper
+
+lint-job:
+  stage: lint
+  tags:
+    - new-docker
+  script:
+    - godep restore
+    - go install
+    - go clean
+    - goimports -w=true .
+    - go vet ./internal/...
+    - go generate ./internal/...
+    - gofmt -w .
+
+build-job:
+  stage: build
+  tags:
+    - new-docker
+  script:
+    - godep restore
+    - go build -race
+
+test-job:
+  stage: test
+  tags:
+    - new-docker
+  script:
+    - godep restore
+    - go test -p=1 ./internal/...
+    - go test -race ./internal/...
+
+deploy-staging:
+  stage: deploy-staging
+  tags:
+    - shell
+  variables:
+    IMAGE_REPO_NAME: "log-wrapper"
+    IMAGE_VERSION: "v_${CI_PIPELINE_ID}"
+    SERVICE_NAME: "log-wrapper"
+    TASK_FAMILY: "log-wrapper"
+    CONFIG_NAME: "log-wrapper"
+    CLUSTER_NAME: "staging"
+    CONFIG_FOLDER: "lynk-test-config"
+    AWS_BUCKET: "lynk-test-config"
+  environment:
+    name: staging
+    url: https://staging-log.lynk.co.in
+  only:
+    - staging
+  before_script:
+    - pip install awscli
+  script:
+    - eval $(aws ecr get-login --no-include-email --region ap-south-1)
+    - docker build -t ${IMAGE_REPO_NAME} .
+    - docker tag ${IMAGE_REPO_NAME} ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_VERSION}
+    - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_VERSION}
+    - aws s3 cp --region ${AWS_REGION} s3://${AWS_BUCKET}/${CONFIG_NAME}.json  /tmp/ci/${CONFIG_FOLDER}/
+    - export WORKSPACE_PATH="/tmp/ci/${CONFIG_FOLDER}/${CONFIG_NAME}.json"
+    - export CONFIG_PATH="/tmp/ci/${CONFIG_FOLDER}/${CONFIG_NAME}-${IMAGE_VERSION}.json"
+    - sed -e "s;%IMAGE_VERSION%;${IMAGE_VERSION};g" ${WORKSPACE_PATH}  > ${CONFIG_PATH}
+    - aws ecs register-task-definition --region ${AWS_REGION} --family  ${TASK_FAMILY} --cli-input-json file://${CONFIG_PATH}
+    - export TASK_REVISION=`aws ecs describe-task-definition  --region ${AWS_REGION} --task-definition ${TASK_FAMILY} | egrep "revision" | tr "/" " " | awk '{print $2}' | sed 's/"$//'  | sed 's/,$//'`
+    - export DESIRED_COUNT=`aws ecs describe-services --region ${AWS_REGION} --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME}  | egrep "desiredCount" | tr "/" " " | awk '{print $2}' | sed 's/,$//' | head -1`
+    - echo ${TASK_REVISION}
+    - echo ${DESIRED_COUNT}
+    - aws ecs update-service --region ${AWS_REGION} --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME}  --task-definition ${TASK_FAMILY}:${TASK_REVISION} --desired-count ${DESIRED_COUNT} --deployment-configuration maximumPercent=200,minimumHealthyPercent=50
+
+
+deploy-prod:
+  stage: deploy-prod
+  tags:
+    - shell
+  variables:
+    IMAGE_REPO_NAME: "log-wrapper-prod"
+    IMAGE_VERSION: "v_${CI_PIPELINE_ID}"
+    SERVICE_NAME: "log-wrapper"
+    TASK_FAMILY: "log-wrapper-prod"
+    CONFIG_NAME: "log-wrapper"
+    CLUSTER_NAME: "prod-cluster"
+    CONFIG_FOLDER: "lynk-prod-config"
+    AWS_BUCKET: "lynk-prod-config"
+  environment:
+    name: prod
+    url: https://log.lynk.co.in
+  only:
+    - master
+  before_script:
+    - pip install awscli
+  script:
+    - eval $(aws ecr get-login --no-include-email --region ap-south-1)
+    - docker build -t ${IMAGE_REPO_NAME} .
+    - docker tag ${IMAGE_REPO_NAME} ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_VERSION}
+    - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_VERSION}
+    - aws s3 cp --region ${AWS_REGION} s3://${AWS_BUCKET}/${CONFIG_NAME}.json  /tmp/ci/${CONFIG_FOLDER}/
+    - export WORKSPACE_PATH="/tmp/ci/${CONFIG_FOLDER}/${CONFIG_NAME}.json"
+    - export CONFIG_PATH="/tmp/ci/${CONFIG_FOLDER}/${CONFIG_NAME}-${IMAGE_VERSION}.json"
+    - sed -e "s;%IMAGE_VERSION%;${IMAGE_VERSION};g" ${WORKSPACE_PATH}  > ${CONFIG_PATH}
+    - aws ecs register-task-definition --region ${AWS_REGION} --family  ${TASK_FAMILY} --cli-input-json file://${CONFIG_PATH}
+    - export TASK_REVISION=`aws ecs describe-task-definition  --region ${AWS_REGION} --task-definition ${TASK_FAMILY} | egrep "revision" | tr "/" " " | awk '{print $2}' | sed 's/"$//'  | sed 's/,$//'`
+    - export DESIRED_COUNT=`aws ecs describe-services --region ${AWS_REGION} --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME}  | egrep "desiredCount" | tr "/" " " | awk '{print $2}' | sed 's/,$//' | head -1`
+    - echo ${TASK_REVISION}
+    - echo ${DESIRED_COUNT}
+    - aws ecs update-service --region ${AWS_REGION} --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME}  --task-definition ${TASK_FAMILY}:${TASK_REVISION} --desired-count ${DESIRED_COUNT} --deployment-configuration maximumPercent=200,minimumHealthyPercent=50
+
+
+deploy-prod:
+  stage: deploy-prod-new
+  tags:
+    - new-shell
+  environment:
+    name: prod
+    url: https://lw.lynk.co.in
+  only:
+    - prod
+  before_script:
+    - echo "Deploying"
+  script:
+    - wget https://lynk-binaries.s3.ap-south-1.amazonaws.com/linux-deployer/linux-deployer
+    - chmod +x linux-deployer
+    - ./linux-deployer -env=prod-new -service=log-wrapper

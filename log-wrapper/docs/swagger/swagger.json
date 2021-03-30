@@ -1,0 +1,236 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Log Wrapper service is used to send logs to kafka queue which is consumed by graylog.",
+        "title": "Log Wrapper API",
+        "contact": {},
+        "license": {},
+        "version": "1.0"
+    },
+    "host": "staging-log.lynk.co.in",
+    "basePath": "/",
+    "paths": {
+        "/ping": {
+            "get": {
+                "description": "do ping",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ping"
+                ],
+                "summary": "ping api",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/dtos.ResStruct"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/dtos.Res500Struct"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs": {
+            "post": {
+                "description": "Create a new log request and send them to kafka",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "log"
+                ],
+                "summary": "Create a new log request",
+                "parameters": [
+                    {
+                        "description": "Create log",
+                        "name": "log",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/dtos.Log"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/dtos.ResStruct"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/dtos.Res400Struct"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/dtos.Res500Struct"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dtos.Log": {
+            "type": "object",
+            "required": [
+                "level",
+                "full_message",
+                "app_name",
+                "ref_id",
+                "message",
+                "file",
+                "timestamp",
+                "line"
+            ],
+            "properties": {
+                "app_name": {
+                    "type": "string",
+                    "example": "Booking"
+                },
+                "app_version": {
+                    "type": "string",
+                    "example": "App Version"
+                },
+                "customer_id": {
+                    "type": "string",
+                    "example": "CustomerID"
+                },
+                "file": {
+                    "type": "string",
+                    "example": "app file name"
+                },
+                "full_message": {
+                    "type": "string",
+                    "example": "full message with details"
+                },
+                "ip_address": {
+                    "type": "string",
+                    "example": "127.0.0.1"
+                },
+                "level": {
+                    "type": "string",
+                    "example": "INFO"
+                },
+                "line": {
+                    "type": "string",
+                    "example": "line of file"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "message"
+                },
+                "method": {
+                    "type": "string",
+                    "example": "POST/GET"
+                },
+                "ref_id": {
+                    "type": "string",
+                    "example": "RefID"
+                },
+                "request": {
+                    "type": "string",
+                    "example": "/ping"
+                },
+                "request_group": {
+                    "type": "string",
+                    "example": "Ping"
+                },
+                "response_time": {
+                    "type": "number",
+                    "example": 1.012
+                },
+                "status_code": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2018-08-09T15:46:29.000Z"
+                },
+                "user_agent": {
+                    "type": "string",
+                    "example": "ios/android"
+                }
+            }
+        },
+        "dtos.Res400Struct": {
+            "type": "object",
+            "properties": {
+                "httpCode": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Invalid param"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "FAILED"
+                }
+            }
+        },
+        "dtos.Res500Struct": {
+            "type": "object",
+            "properties": {
+                "httpCode": {
+                    "type": "integer",
+                    "example": 500
+                },
+                "message": {
+                    "type": "string",
+                    "example": "could not connect to db"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "FAILED"
+                }
+            }
+        },
+        "dtos.ResStruct": {
+            "type": "object",
+            "properties": {
+                "httpCode": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "message": {
+                    "type": "string",
+                    "example": "pong/SUCCESS"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "SUCCESS"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BasicAuth": {
+            "type": "basic"
+        }
+    }
+}

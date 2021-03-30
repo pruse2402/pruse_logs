@@ -1,0 +1,12 @@
+out/
+bin/
+*.iml
+*.log
+*.log.*
+.DS_Store
+perf-tests/target
+.rvmrc
+dump.rdb
+/tags
+*.env
+scripts/

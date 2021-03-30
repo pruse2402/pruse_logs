@@ -1,0 +1,169 @@
+basePath: /
+definitions:
+  dtos.Log:
+    properties:
+      app_name:
+        example: Booking
+        type: string
+      app_version:
+        example: App Version
+        type: string
+      customer_id:
+        example: CustomerID
+        type: string
+      file:
+        example: app file name
+        type: string
+      full_message:
+        example: full message with details
+        type: string
+      ip_address:
+        example: 127.0.0.1
+        type: string
+      level:
+        example: INFO
+        type: string
+      line:
+        example: line of file
+        type: string
+      message:
+        example: message
+        type: string
+      method:
+        example: POST/GET
+        type: string
+      ref_id:
+        example: RefID
+        type: string
+      request:
+        example: /ping
+        type: string
+      request_group:
+        example: Ping
+        type: string
+      response_time:
+        example: 1.012
+        type: number
+      status_code:
+        example: 200
+        type: integer
+      timestamp:
+        example: "2018-08-09T15:46:29.000Z"
+        type: string
+      user_agent:
+        example: ios/android
+        type: string
+    required:
+    - level
+    - full_message
+    - app_name
+    - ref_id
+    - message
+    - file
+    - timestamp
+    - line
+    type: object
+  dtos.Res400Struct:
+    properties:
+      httpCode:
+        example: 400
+        type: integer
+      message:
+        example: Invalid param
+        type: string
+      status:
+        example: FAILED
+        type: string
+    type: object
+  dtos.Res500Struct:
+    properties:
+      httpCode:
+        example: 500
+        type: integer
+      message:
+        example: could not connect to db
+        type: string
+      status:
+        example: FAILED
+        type: string
+    type: object
+  dtos.ResStruct:
+    properties:
+      httpCode:
+        example: 200
+        type: integer
+      message:
+        example: pong/SUCCESS
+        type: string
+      status:
+        example: SUCCESS
+        type: string
+    type: object
+host: staging-log.lynk.co.in
+info:
+  contact: {}
+  description: Log Wrapper service is used to send logs to kafka queue which is consumed
+    by graylog.
+  license: {}
+  title: Log Wrapper API
+  version: "1.0"
+paths:
+  /ping:
+    get:
+      consumes:
+      - application/json
+      description: do ping
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ResStruct'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.Res500Struct'
+            type: object
+      summary: ping api
+      tags:
+      - ping
+  /v1/logs:
+    post:
+      consumes:
+      - application/json
+      description: Create a new log request and send them to kafka
+      parameters:
+      - description: Create log
+        in: body
+        name: log
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.Log'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ResStruct'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dtos.Res400Struct'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dtos.Res500Struct'
+            type: object
+      summary: Create a new log request
+      tags:
+      - log
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
